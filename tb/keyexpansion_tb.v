@@ -2,7 +2,7 @@ module tb;
     parameter Nk = 4; localparam Nkb = Nk*32; // 128 -> 4; 192 -> 6; 256 -> 8
     parameter Nr = 10; // 128 -> 10; 192 -> 12; 256 -> 14
     logic [0:Nkb - 1] key;
-    logic [32*(4*Nr + 4) - 1:0] w;;
+    logic [32*(4*Nr + 4) - 1:0] w;
 
     task display_round_keys;
         integer i, j;
