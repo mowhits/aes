@@ -1,0 +1,27 @@
+# Simulation outputs
+*.vcd
+*.fst
+*.lxt
+*.lxt2
+*.vvp
+*.out
+
+# Build/synthesis tool junk
+work/
+simv*
+csrc/
+DVEfiles/
+*.daidir/
+*.key
+*.log
+*.jou
+*.wdb
+*.rpt
+
+# Editor/OS junk
+*.swp
+*~
+.DS_Store
+Thumbs.db
+__pycache__/
+*.pyc
