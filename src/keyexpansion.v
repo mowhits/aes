@@ -3,7 +3,7 @@ module keyexpansion(key, w);
     parameter Nr = 10; // 128 -> 10; 192 -> 12; 256 -> 14
     input logic [0:Nkb - 1] key;
     output logic [32*(4*Nr + 4) - 1:0] w; 
-    // \begin{rant} i hate this so fucking much. it's literally just `logic` in sv. but then i can't fucking use subranges in subroutines. \end{rant}
+    // \begin{rant} i hate this packed array so much. but then i can't use subranges in subroutines. \end{rant}
     integer i;
 
     function [7:0] sbox;
