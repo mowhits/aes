@@ -1,10 +1,15 @@
-module keyexpansion(key, w);
+module cipher(in, key, out);
     parameter Nk = 4; localparam Nkb = Nk*32; // 128 -> 4; 192 -> 6; 256 -> 8
     parameter Nr = 10; // 128 -> 10; 192 -> 12; 256 -> 14
-    input logic [0:Nkb - 1] key;
-    output logic [0:32*(4*Nr + 4) - 1] w; 
-    // \begin{rant} i hate this packed array so much. but then i can't use subranges in subroutines. \end{rant}
-    integer i;
+    input logic [0:Nkb - 1] key, in;
+    output logic [0:Nkb - 1] out;
+    
+
+    logic [0:Nkb - 1] state;
+    integer i, j, k;
+
+    logic [0:32*(4*Nr + 4) - 1] w;    
+    keyexpansion k1(key, w);
 
     function [7:0] sbox;
         input [7:0] b;
@@ -268,53 +273,92 @@ module keyexpansion(key, w);
         endcase
     endfunction
 
-    function [31:0] rcon;
-        input integer j;
-        case(j)
-            1: rcon = 32'h01000000;
-            2: rcon = 32'h02000000;
-            3: rcon = 32'h04000000;
-            4: rcon = 32'h08000000;
-            5: rcon = 32'h10000000;
-            6: rcon = 32'h20000000;
-            7: rcon = 32'h40000000;
-            8: rcon = 32'h80000000;
-            9: rcon = 32'h1b000000;
-            10: rcon = 32'h36000000;
-            default: rcon = 32'h0;
-        endcase
-    endfunction
-
-    function [31:0] rotword;
-        input [31:0] word;
-        rotword = {word[23:0], word[31:24]};
-    endfunction
-
-    function [31:0] subword;
-        input [31:0] word;
-        subword = {sbox(word[31:24]), sbox(word[23:16]), sbox(word[15:8]), sbox(word[7:0])};
-    endfunction
-
-    function [31:0] wgen;
-        input [31:0] word;
-        input integer i;
+    function [0:Nkb - 1] subbytes;
+        input [0:Nkb - 1] s;
+        integer i;
         begin
-            if (i % Nk == 0) wgen = subword(rotword(word))^rcon(i/Nk);
-            else if (Nk > 6 && i % Nk == 4) wgen = subword(word);
-            else wgen = word;
+            for (i = 0; i < 16; i = i + 1) begin
+                subbytes[8*i+:8] = sbox(s[8*i+:8]);
+            end
         end
     endfunction
 
-    always @ (*) begin
-        for (i = 0; i <= Nk - 1; i = i + 1) begin
-            w[32*i+:32] = key[32*i+:32];
-        end
+    function [0:Nkb - 1] shiftrows;
+        input [0:Nkb - 1] s;
+        integer i, j;
+        begin
+            for (i = 0; i < 4; i = i + 1) begin
+                for (j = 0; j < 4; j = j + 1) begin
+                    // why? convert aes_spec formula for shiftrows() to column major.
+                    shiftrows[32*i + 8*j+:8] = s[32*((i + j)%4) + 8*j+:8];
+                    
 
-        for (i = Nk; i <= 4*Nr + 3; i = i + 1) begin
-            // temp = w[i - 1];
-            // if (i % Nk == 0) temp = subword(rotword(temp))^rcon(i/Nk);
-            // else if (Nk > 6 && i % Nk == 4) temp = subword(temp);
-            w[32*i+:32] = w[32*(i - Nk)+:32]^wgen(w[32*(i - 1)+:32], i);
+                end 
+            end
         end
+    endfunction
+
+    function [7:0] xtimes;
+        input [7:0] b;
+        begin
+            if (b[7]) xtimes = (b << 1)^(8'b00011011);
+            else xtimes = b << 1;
+        end
+    endfunction
+
+    function [0:Nkb - 1] mixcolumns;
+        input [0:Nkb - 1] s;
+        integer j;
+        begin
+            for (j = 0; j < 4; j = j + 1) begin
+                mixcolumns[32*j+:32] = 
+                {
+                    xtimes(s[(32*j + 0)+:8])^s[(32*j + 8)+:8]^xtimes(s[(32*j + 8)+:8])^s[(32*j + 16)+:8]^s[(32*j + 24)+:8],
+                    xtimes(s[(32*j + 8)+:8])^s[(32*j + 16)+:8]^xtimes(s[(32*j + 16)+:8])^s[(32*j + 0)+:8]^s[(32*j + 24)+:8],
+                    xtimes(s[(32*j + 16)+:8])^s[(32*j + 24)+:8]^xtimes(s[(32*j + 24)+:8])^s[(32*j + 0)+:8]^s[(32*j + 8)+:8],
+                    xtimes(s[(32*j + 24)+:8])^s[(32*j + 0)+:8]^xtimes(s[(32*j + 0)+:8])^s[(32*j + 8)+:8]^s[(32*j + 16)+:8]
+                };
+            end
+        end
+    endfunction
+
+    function [0:Nkb - 1] addroundkey;
+        input [0:Nkb - 1] s;
+        input [0:Nkb - 1] roundkey;
+        integer j;
+        begin
+            $display("Round key: %h", roundkey);
+            for (j = 0; j < 4; j = j + 1) begin
+                addroundkey[32*j+:32] = s[32*j+:32]^roundkey[32*j+:32];
+            end
+        end
+    endfunction
+
+    always @(*) begin
+        state = in;
+        state = addroundkey(state, w[0+:Nkb]);
+        $display("Round 0");
+        $display("After addroundkey: %h", state);
+        for (i = 1; i < Nr; i = i + 1) begin
+            $display("Round %0d", i);
+            state = subbytes(state);
+            $display("After subbytes: %h", state);
+            state = shiftrows(state);
+            $display("After shiftrows: %h", state);
+            state = mixcolumns(state);
+            $display("After mixcolumns: %h", state);
+            state = addroundkey(state, w[Nkb*i+:Nkb]);
+            $display("After addroundkey: %h", state);
+        end
+        $display("Round %0d", i);
+        state = subbytes(state);
+        $display("After subbytes: %h", state);
+        state = shiftrows(state);
+        $display("After shiftrows: %h", state);
+        state = addroundkey(state, w[Nkb*i+:Nkb]);
+        $display("After addroundkey: %h", state);
+        out = state;
     end
+    
+
 endmodule
