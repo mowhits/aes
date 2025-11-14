@@ -18,7 +18,9 @@ module tb;
     cipher c1(.in(in), .key(key), .out(out));
 
     initial begin
-       in = 128'h0102030405060708090a0b0c0d0e0f00;
-       key = 128'h0;
+       in = 128'h000102030405060708090a0b0c0d0e0f;
+       key = 128'h00102030405060708090a0b0c0d0e0f;
+       $dumpfile("dump.vcd");
+       $dumpvars(0, tb);
     end
 endmodule

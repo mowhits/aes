@@ -311,6 +311,11 @@ module cipher(in, key, out);
         integer j;
         begin
             for (j = 0; j < 4; j = j + 1) begin
+                /* 
+                why? in the aes_spec formula for mixcolumns(), we have b \cdot {03}, which is
+                nontrivial to perform. thus, we'll split the {03} to its xor factors, i.e. {03} = {01} \circplus {02}
+                b \cdot ({01} \circplus {02} = b \circplus (b \cdot {02}) = b^xtimes(b). 
+                */
                 mixcolumns[32*j+:32] = 
                 {
                     xtimes(s[(32*j + 0)+:8])^s[(32*j + 8)+:8]^xtimes(s[(32*j + 8)+:8])^s[(32*j + 16)+:8]^s[(32*j + 24)+:8],
@@ -327,7 +332,6 @@ module cipher(in, key, out);
         input [0:Nkb - 1] roundkey;
         integer j;
         begin
-            $display("Round key: %h", roundkey);
             for (j = 0; j < 4; j = j + 1) begin
                 addroundkey[32*j+:32] = s[32*j+:32]^roundkey[32*j+:32];
             end
@@ -337,26 +341,15 @@ module cipher(in, key, out);
     always @(*) begin
         state = in;
         state = addroundkey(state, w[0+:Nkb]);
-        $display("Round 0");
-        $display("After addroundkey: %h", state);
         for (i = 1; i < Nr; i = i + 1) begin
-            $display("Round %0d", i);
             state = subbytes(state);
-            $display("After subbytes: %h", state);
             state = shiftrows(state);
-            $display("After shiftrows: %h", state);
             state = mixcolumns(state);
-            $display("After mixcolumns: %h", state);
             state = addroundkey(state, w[Nkb*i+:Nkb]);
-            $display("After addroundkey: %h", state);
         end
-        $display("Round %0d", i);
         state = subbytes(state);
-        $display("After subbytes: %h", state);
         state = shiftrows(state);
-        $display("After shiftrows: %h", state);
         state = addroundkey(state, w[Nkb*i+:Nkb]);
-        $display("After addroundkey: %h", state);
         out = state;
     end
     

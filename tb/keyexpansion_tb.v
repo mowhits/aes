@@ -22,7 +22,7 @@ module tb;
     keyexpansion uut(.key(key), .w(w));
 
     initial begin
-        key = 128'h0;
+        key = 128'h000102030405060708090a0b0c0d0e0f;
         #10 display_round_keys();
     end
 
