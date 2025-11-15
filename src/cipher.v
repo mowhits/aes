@@ -3,7 +3,6 @@ module cipher(in, key, out);
     parameter Nr = 10; // 128 -> 10; 192 -> 12; 256 -> 14
     input logic [0:Nkb - 1] key, in;
     output logic [0:Nkb - 1] out;
-    
 
     logic [0:Nkb - 1] state;
     integer i, j, k;

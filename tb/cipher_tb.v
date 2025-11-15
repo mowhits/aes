@@ -4,23 +4,26 @@ module tb;
     logic [0:Nkb - 1] key, in;
     logic [0:Nkb - 1] out;
 
-    task display_out;
-        integer i, j;
-        begin
-            $display("Out: ");
-            for (i = 0; i < 4; i = i + 1) begin
-                $write("%h ", out[32*i+:32]);
-            end
-        end
-        $display("");
-    endtask
-
-    cipher c1(.in(in), .key(key), .out(out));
+    cipher dut (.in(in), .key(key), .out(out));
 
     initial begin
-       in = 128'h000102030405060708090a0b0c0d0e0f;
-       key = 128'h00102030405060708090a0b0c0d0e0f;
-       $dumpfile("dump.vcd");
-       $dumpvars(0, tb);
+
+        $dumpfile("dump.vcd"); $dumpvars(0, tb);
+
+        in = 128'h000102030405060708090a0b0c0d0e0f;
+        key = 128'h00102030405060708090a0b0c0d0e0f;
+
+        #10 $display("in = %h\nkey = %h\nout = %h", in, key, out);
+        if (out == 128'h0a940bb5416ef045f1c39458c653ea5a) $display("The ciphertext is correct.");
+        else $display("The cipher text is incorrect.");
+
+        in = 128'h000102030405060708090a0b0c0d0e0f;
+        key = 128'h0;
+
+        #10 $display("in = %h\nkey = %h\nout = %h", in, key, out);
+        if (out == 128'h7aca0fd9bcd6ec7c9f97466616e6a282) $display("The ciphertext is correct.");
+        else $display("The cipher text is incorrect.");
+
+        
     end
 endmodule
