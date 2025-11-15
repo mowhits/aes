@@ -3,7 +3,6 @@ module keyexpansion(key, w);
     parameter Nr = 10; // 128 -> 10; 192 -> 12; 256 -> 14
     input logic [0:Nkb - 1] key;
     output logic [0:32*(4*Nr + 4) - 1] w; 
-    // \begin{rant} i hate this packed array so much. but then i can't use subranges in subroutines. \end{rant}
     integer i;
 
     function [7:0] sbox;
@@ -311,9 +310,6 @@ module keyexpansion(key, w);
         end
 
         for (i = Nk; i <= 4*Nr + 3; i = i + 1) begin
-            // temp = w[i - 1];
-            // if (i % Nk == 0) temp = subword(rotword(temp))^rcon(i/Nk);
-            // else if (Nk > 6 && i % Nk == 4) temp = subword(temp);
             w[32*i+:32] = w[32*(i - Nk)+:32]^wgen(w[32*(i - 1)+:32], i);
         end
     end
