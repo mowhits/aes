@@ -290,8 +290,6 @@ module cipher(in, key, out);
                 for (j = 0; j < 4; j = j + 1) begin
                     // why? convert aes_spec formula for shiftrows() to column major.
                     shiftrows[32*i + 8*j+:8] = s[32*((i + j)%4) + 8*j+:8];
-                    
-
                 end 
             end
         end
@@ -351,6 +349,4 @@ module cipher(in, key, out);
         state = addroundkey(state, w[Nkb*i+:Nkb]);
         out = state;
     end
-    
-
 endmodule

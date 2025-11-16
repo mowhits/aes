@@ -303,28 +303,31 @@ module inversecipher(in, key, out);
             else xtimes = b << 1;
         end
     endfunction
-    
-    /*
-    since b * {08} = b * {02} * {02} * {02} <=> xtimes(xtimes(xtimes(b))), 
-    similarly b * {04} = b * {02} * {02} <=> xtimes(xtimes(b))
-    */
 
     function [7:0] xtimes9;
+        /*
+        since b * {08} = b * {02} * {02} * {02} <=> xtimes(xtimes(xtimes(b))), 
+        similarly b * {04} = b * {02} * {02} <=> xtimes(xtimes(b))
+        */
         input [7:0] b;
         xtimes9 = xtimes(xtimes(xtimes(b)))^b; // {09} = {08} ⨁ {01}; 
     endfunction
+
     function [7:0] xtimesb;
         input [7:0] b;
         xtimesb = xtimes(xtimes(xtimes(b)))^xtimes(b)^b; // {0b} = {08} ⨁ {02} ⨁ {01}
     endfunction
+
     function [7:0] xtimesd;
         input [7:0] b;
         xtimesd = xtimes(xtimes(xtimes(b)))^xtimes(xtimes(b))^b; // {0d} = {08} ⨁ {04} ⨁ {01}
     endfunction
+
     function [7:0] xtimese;
         input [7:0] b;
         xtimese = xtimes(xtimes(xtimes(b)))^xtimes(xtimes(b))^xtimes(b); // {0d} = {08} ⨁ {04} ⨁ {02}
     endfunction
+
     function [0:Nkb - 1] invmixcolumns;
         input [0:Nkb - 1] s;
         integer j;
@@ -345,7 +348,7 @@ module inversecipher(in, key, out);
             end
         end
     endfunction
-
+    
     function [0:Nkb - 1] addroundkey;
         input [0:Nkb - 1] s;
         input [0:Nkb - 1] roundkey;
@@ -358,33 +361,17 @@ module inversecipher(in, key, out);
     endfunction
 
     always @(*) begin
-        $display("Round 10:");
         state = in;
-        $display("Initial: %h", state);
         state = addroundkey(state, w[Nkb*Nr+:Nkb]);
-        
-        $display("After addroundkey: %h", state);
         for (i = Nr - 1; i > 0; i = i - 1) begin
-            $display("Round %0d:", i);
-
             state = invshiftrows(state);
-            $display("After invshiftrows: %h", state);
             state = invsubbytes(state);
-            $display("After invsubbytes: %h", state);
             state = addroundkey(state, w[Nkb*i+:Nkb]);
-            $display("After addroundkey: %h", state);
             state = invmixcolumns(state);
-            $display("After invmixcolumns: %h", state);
         end
-        $display("Round 0:");
         state = invshiftrows(state);
-        $display("After invshiftrows: %h", state);
         state = invsubbytes(state);
-        $display("After invsubbytes: %h", state);
         state = addroundkey(state, w[0+:Nkb]);
-        $display("After addroundkey: %h", state);
         out = state;
     end
-    
-
 endmodule
