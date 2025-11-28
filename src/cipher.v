@@ -1,10 +1,12 @@
-module cipher(in, key, out);
+module cipher(in, key, out, clk, rst_n);
     parameter Nk = 4; localparam Nkb = Nk*32; // 128 -> 4; 192 -> 6; 256 -> 8
     parameter Nr = 10; // 128 -> 10; 192 -> 12; 256 -> 14
     input logic [0:Nkb - 1] key, in;
     output logic [0:Nkb - 1] out;
 
-    logic [0:Nkb - 1] state;
+    input logic clk, rst_n;
+
+    logic [0:Nkb - 1] state [0:Nr + 1];
     integer i, j, k;
 
     logic [0:32*(4*Nr + 4) - 1] w;    
@@ -335,18 +337,22 @@ module cipher(in, key, out);
         end
     endfunction
 
-    always @(*) begin
-        state = in;
-        state = addroundkey(state, w[0+:Nkb]);
-        for (i = 1; i < Nr; i = i + 1) begin
-            state = subbytes(state);
-            state = shiftrows(state);
-            state = mixcolumns(state);
-            state = addroundkey(state, w[Nkb*i+:Nkb]);
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            for (i = 0; i < Nr + 2; i = i + 1) begin
+                state[i] <= 0;
+            end
+            out <= 0;
         end
-        state = subbytes(state);
-        state = shiftrows(state);
-        state = addroundkey(state, w[Nkb*i+:Nkb]);
-        out = state;
+        else begin
+            state[0] <= addroundkey(in, w[0+:Nkb]);
+            for (i = 1; i < Nr; i = i + 1) begin
+                state[i] <= addroundkey(mixcolumns(shiftrows(subbytes(state[i - 1]))), w[Nkb*i+:Nkb]);
+                // state = addroundkey(state, w[Nkb*i+:Nkb]);
+            end
+            out <= addroundkey(shiftrows(subbytes(state[i - 1])), w[Nkb*i+:Nkb]);
+            $display("t = %0t, out = %h", $time, out);
+        end
+        
     end
 endmodule
