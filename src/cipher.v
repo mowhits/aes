@@ -9,8 +9,7 @@ module cipher(in, key, out, clk, rst_n);
     logic [0:Nkb - 1] state [0:Nr + 1];
     integer i, j, k;
 
-    logic [0:32*(4*Nr + 4) - 1] w;    
-    keyexpansion k1(key, w);
+    logic [0:32*(4*Nr + 4) - 1] w;
 
     function [7:0] sbox;
         input [7:0] b;
@@ -274,6 +273,44 @@ module cipher(in, key, out, clk, rst_n);
         endcase
     endfunction
 
+    function [31:0] rcon;
+        input integer j;
+        case(j)
+            1: rcon = 32'h01000000;
+            2: rcon = 32'h02000000;
+            3: rcon = 32'h04000000;
+            4: rcon = 32'h08000000;
+            5: rcon = 32'h10000000;
+            6: rcon = 32'h20000000;
+            7: rcon = 32'h40000000;
+            8: rcon = 32'h80000000;
+            9: rcon = 32'h1b000000;
+            10: rcon = 32'h36000000;
+            default: rcon = 32'h0;
+        endcase
+    endfunction
+
+    function [31:0] rotword;
+        input [31:0] word;
+        rotword = {word[23:0], word[31:24]};
+    endfunction
+
+    function [31:0] subword;
+        input [31:0] word;
+        subword = {sbox(word[31:24]), sbox(word[23:16]), sbox(word[15:8]), sbox(word[7:0])};
+    endfunction
+
+    function [31:0] wgen;
+        input [31:0] word;
+        input integer i;
+        begin
+            if (i % Nk == 0) wgen = subword(rotword(word))^rcon(i/Nk);
+            else if (Nk > 6 && i % Nk == 4) wgen = subword(word);
+            else wgen = word;
+        end
+    endfunction
+
+
     function [0:Nkb - 1] subbytes;
         input [0:Nkb - 1] s;
         integer i;
@@ -337,18 +374,35 @@ module cipher(in, key, out, clk, rst_n);
         end
     endfunction
 
+    always @ (*) begin
+        for (i = 0; i <= Nk - 1; i = i + 1) begin
+            w[32*i+:32] = key[32*i+:32];
+        end
+
+        for (i = Nk; i <= 4*Nr + 3; i = i + 1) begin
+            w[32*i+:32] = w[32*(i - Nk)+:32]^wgen(w[32*(i - 1)+:32], i);
+        end
+    end
+
     always @(posedge clk) begin
         if (!rst_n) begin
             for (i = 0; i < Nr + 2; i = i + 1) begin
                 state[i] <= 0;
             end
             out <= 0;
+            w <= 0;
         end
         else begin
+            for (i = 0; i <= Nk - 1; i = i + 1) begin
+                w[32*i+:32] <= key[32*i+:32];
+            end
+
+            for (i = Nk; i <= 4*Nr + 3; i = i + 1) begin
+                w[32*i+:32] <= w[32*(i - Nk)+:32]^wgen(w[32*(i - 1)+:32], i);
+            end
             state[0] <= addroundkey(in, w[0+:Nkb]);
             for (i = 1; i < Nr; i = i + 1) begin
                 state[i] <= addroundkey(mixcolumns(shiftrows(subbytes(state[i - 1]))), w[Nkb*i+:Nkb]);
-                // state = addroundkey(state, w[Nkb*i+:Nkb]);
             end
             out <= addroundkey(shiftrows(subbytes(state[i - 1])), w[Nkb*i+:Nkb]);
             $display("t = %0t, out = %h", $time, out);
