@@ -7,9 +7,10 @@ module cipher(in, key, out, clk, rst_n);
     input logic clk, rst_n;
 
     logic [0:Nkb - 1] state [0:Nr + 1];
+    logic done;
     integer i, j, k;
 
-    logic [0:32*(4*Nr + 4) - 1] w;
+    logic [0:32*(4*Nr + 4) - 1] w; // easier to switch to 128-long slicing using a packed array so i'm keeping this inconsistency
 
     function [7:0] sbox;
         input [7:0] b;
@@ -384,6 +385,14 @@ module cipher(in, key, out, clk, rst_n);
         end
     end
 
+    // always @(posedge clk) begin
+    //     if (!rst_n) begin
+    //         done <= 0;
+    //         busy <= 0;
+
+    //     end
+    // end
+
     always @(posedge clk) begin
         if (!rst_n) begin
             for (i = 0; i < Nr + 2; i = i + 1) begin
@@ -391,14 +400,17 @@ module cipher(in, key, out, clk, rst_n);
             end
             out <= 0;
             w <= 0;
+            done <= 0;
         end
         else begin
             for (i = 0; i <= Nk - 1; i = i + 1) begin
                 w[32*i+:32] <= key[32*i+:32];
+                // $display("Key %0d generated at %0t", i, $time);
             end
-
             for (i = Nk; i <= 4*Nr + 3; i = i + 1) begin
                 w[32*i+:32] <= w[32*(i - Nk)+:32]^wgen(w[32*(i - 1)+:32], i);
+                // $display("Key %0d generated at %0t", i, $time);
+
             end
             state[0] <= addroundkey(in, w[0+:Nkb]);
             for (i = 1; i < Nr; i = i + 1) begin
@@ -406,7 +418,7 @@ module cipher(in, key, out, clk, rst_n);
             end
             out <= addroundkey(shiftrows(subbytes(state[i - 1])), w[Nkb*i+:Nkb]);
             $display("t = %0t, out = %h", $time, out);
+            done <= 1;
         end
-        
     end
 endmodule
