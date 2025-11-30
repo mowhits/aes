@@ -14,7 +14,6 @@ module cipher_tb;
     end
 
     initial begin
-        // the dumpfile doesn't really work. i need to check on that.
         $dumpfile("dump.vcd"); $dumpvars(0, cipher_tb);
         rst_n = 0;
         valid_in = 1;
@@ -28,7 +27,7 @@ module cipher_tb;
         #1 key = 128'h000102030405060708090a0b0c0d0e0f;
         in = 128'h0;
 
-        // outputs here
+        // outputs here. really need to improve this testbench but it suffices for now.
         $monitor("%0t, valid_out: %0d", $time, valid_out);
         wait(out == 128'h0a940bb5416ef045f1c39458c653ea5a);
         $display("plaintext = %h\nkey = %h\nciphertext = %h", in, key, out);

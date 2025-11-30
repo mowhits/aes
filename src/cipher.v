@@ -314,7 +314,6 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
         end
     endfunction
 
-
     function [0:Nkb - 1] subbytes;
         input [0:Nkb - 1] s;
         integer i;
@@ -379,6 +378,7 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
     endfunction
 
     always @ (*) begin
+        // key generation
         for (i = 0; i <= Nk - 1; i = i + 1) begin
             w[32*i+:32] = key[32*i+:32];
         end
@@ -390,19 +390,13 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
 
     always @(posedge clk) begin
         if (!rst_n) begin
-            for (i = 0; i < Nr + 2; i = i + 1) begin
+            for (i = 0; i <= Nr; i = i + 1) begin
                 state[i] <= 0;
             end
             w <= 0;
             valid <= 0;
         end
         else begin
-            for (i = 0; i <= Nk - 1; i = i + 1) begin
-                w[32*i+:32] <= key[32*i+:32];
-            end
-            for (i = Nk; i <= 4*Nr + 3; i = i + 1) begin
-                w[32*i+:32] <= w[32*(i - Nk)+:32]^wgen(w[32*(i - 1)+:32], i);
-            end
             state[0] <= addroundkey(in, w[0+:Nkb]);
             valid[0] <= valid_in;
             for (i = 1; i < Nr; i = i + 1) begin
@@ -412,7 +406,6 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
             state[i] <= addroundkey(shiftrows(subbytes(state[i - 1])), w[Nkb*i+:Nkb]);
         end
     end
-
     assign out = state[Nr];
-    assign valid_out = valid[Nr-1];
+    assign valid_out = valid[Nr - 1];
 endmodule
