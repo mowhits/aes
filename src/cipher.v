@@ -1,13 +1,16 @@
-module cipher(in, key, out, clk, rst_n);
+module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
     parameter Nk = 4; localparam Nkb = Nk*32; // 128 -> 4; 192 -> 6; 256 -> 8
     parameter Nr = 10; // 128 -> 10; 192 -> 12; 256 -> 14
     input logic [0:Nkb - 1] key, in;
     output logic [0:Nkb - 1] out;
 
     input logic clk, rst_n;
+    
+    input logic valid_in;
+    logic [0:Nr] valid;
+    output logic valid_out;
 
-    logic [0:Nkb - 1] state [0:Nr + 1];
-    logic done;
+    logic [0:Nkb - 1] state [0:Nr];
     integer i, j, k;
 
     logic [0:32*(4*Nr + 4) - 1] w; // easier to switch to 128-long slicing using a packed array so i'm keeping this inconsistency
@@ -385,40 +388,31 @@ module cipher(in, key, out, clk, rst_n);
         end
     end
 
-    // always @(posedge clk) begin
-    //     if (!rst_n) begin
-    //         done <= 0;
-    //         busy <= 0;
-
-    //     end
-    // end
-
     always @(posedge clk) begin
         if (!rst_n) begin
             for (i = 0; i < Nr + 2; i = i + 1) begin
                 state[i] <= 0;
             end
-            out <= 0;
             w <= 0;
-            done <= 0;
+            valid <= 0;
         end
         else begin
             for (i = 0; i <= Nk - 1; i = i + 1) begin
                 w[32*i+:32] <= key[32*i+:32];
-                // $display("Key %0d generated at %0t", i, $time);
             end
             for (i = Nk; i <= 4*Nr + 3; i = i + 1) begin
                 w[32*i+:32] <= w[32*(i - Nk)+:32]^wgen(w[32*(i - 1)+:32], i);
-                // $display("Key %0d generated at %0t", i, $time);
-
             end
             state[0] <= addroundkey(in, w[0+:Nkb]);
+            valid[0] <= valid_in;
             for (i = 1; i < Nr; i = i + 1) begin
                 state[i] <= addroundkey(mixcolumns(shiftrows(subbytes(state[i - 1]))), w[Nkb*i+:Nkb]);
+                valid[i] <= valid[i - 1];
             end
-            out <= addroundkey(shiftrows(subbytes(state[i - 1])), w[Nkb*i+:Nkb]);
-            $display("t = %0t, out = %h", $time, out);
-            done <= 1;
+            state[i] <= addroundkey(shiftrows(subbytes(state[i - 1])), w[Nkb*i+:Nkb]);
         end
     end
+
+    assign out = state[Nr];
+    assign valid_out = valid[Nr-1];
 endmodule
