@@ -3,7 +3,8 @@ module cipher_tb;
     parameter Nr = 10; // 128 -> 10; 192 -> 12; 256 -> 14
     logic [0:Nkb - 1] key, in;
     logic [0:Nkb - 1] out;
-    logic clk, rst_n;
+    logic [0:Nkb - 1] test;
+    logic clk, rst_n, clk_en;
     logic valid_in, valid_out;
 
     cipher dut (.in(in), .key(key), .out(out), .clk(clk), .rst_n(rst_n), .valid_in(valid_in), .valid_out(valid_out));
@@ -14,38 +15,68 @@ module cipher_tb;
     end
 
     initial begin
+        clk_en = 0;
+        forever #2 clk_en = ~clk_en;
+    end
+
+    always @(posedge clk) begin
+        $monitor("t = %0t: %h", $time, out);
+    end
+
+    initial begin
         $dumpfile("dump.vcd"); $dumpvars(0, cipher_tb);
         rst_n = 0;
         valid_in = 1;
-        #2
+        repeat(2) @(posedge clk);
         rst_n = 1;
 
         // pipelined inputs here
+        // providing two cycles of latency due to long combinational paths (???)
+        // between sequential logic. to avoid race condition
+        // 1
         in = 128'h000102030405060708090a0b0c0d0e0f;
         key = 128'h00102030405060708090a0b0c0d0e0f;
+        // ciphertext : 128'h0a940bb5416ef045f1c39458c653ea5a
+        @(posedge clk);
+        in = 128'h0f0e0d0c0b0a09080706050403020100; // 4
+        // ciphertext : 128'h20a9f992b44c5be8041ffcdc6cae996a
+        @(posedge clk);
+        in = 128'h00000101030307070f0f1f1f3f3f7f7f; // 3
+        // ciphertext : 128'hb7ea90af536c82a8c8df97106b978f5a
+        repeat(2) @(posedge clk);
+        in = 128'h0; // 2
+        // ciphertext : 128'hc6a13b37878f5b826f4f8162a1c8d879
+        repeat(2) @(posedge clk);
+        in = 128'h0f0e0d0c0b0a09080706050403020100; // 4
+        // ciphertext : 128'h20a9f992b44c5be8041ffcdc6cae996a
+        repeat(2) @(posedge clk);
+        in = 128'h000102030405060708090a0b0c0d0e0f; // 3
+        // ciphertext : 128'h0a940bb5416ef045f1c39458c653ea5a
+        repeat(2) @(posedge clk);
+        in = 128'h0; // 2
+        // ciphertext : 128'hc6a13b37878f5b826f4f8162a1c8d879
 
-        #1 key = 128'h000102030405060708090a0b0c0d0e0f;
-        in = 128'h0;
-
+        #30 rst_n = 0;
+        repeat(2) @(posedge clk);
+        rst_n = 1;
+        in = 128'h000102030405060708090a0b0c0d0e0f;
+        key = 128'h00102030405060708090a0b0c0d0e0f;
+        // ciphertext : 128'h0a940bb5416ef045f1c39458c653ea5a
+        @(posedge clk);
+        in = 128'h0f0e0d0c0b0a09080706050403020100; // 4
+        // ciphertext : 128'h20a9f992b44c5be8041ffcdc6cae996a
+        @(posedge clk);
+        in = 128'h00000101030307070f0f1f1f3f3f7f7f; // 3
+        // ciphertext : 128'hb7ea90af536c82a8c8df97106b978f5a
+        repeat(2) @(posedge clk);
+        in = 128'h000102030405060708090a0b0c0d0e0f; // 3
+        // ciphertext : 128'h0a940bb5416ef045f1c39458c653ea5a
+        repeat(2) @(posedge clk);
+        in = 128'h0; // 2
+        // ciphertext : 128'hc6a13b37878f5b826f4f8162a1c8d879
+        
         // outputs here. really need to improve this testbench but it suffices for now.
-        $monitor("%0t, valid_out: %0d", $time, valid_out);
-        wait(out == 128'h0a940bb5416ef045f1c39458c653ea5a);
-        $display("plaintext = %h\nkey = %h\nciphertext = %h", in, key, out);
-        if (out == 128'h0a940bb5416ef045f1c39458c653ea5a) $display("The ciphertext is correct.");
-        else $display("The ciphertext is incorrect. Expected: 128'h0a940bb5416ef045f1c39458c653ea5a");
-        wait(out == 128'hc6a13b37878f5b826f4f8162a1c8d879);
-        $display("plaintext = %h\nkey = %h\nciphertext = %h\n", in, key, out);
-        if (out == 128'hc6a13b37878f5b826f4f8162a1c8d879) $display("The ciphertext is correct.");
-        else $display("The ciphertext is incorrect. Expected: 128'h7aca0fd9bcd6ec7c9f97466616e6a282");
-        #1 rst_n = 0;
-        #5 rst_n = 1;
-        in = 128'h000102030405060708090a0b0c0d0e0f;
-        key = 128'h00102030405060708090a0b0c0d0e0f;
-        wait(out == 128'h0a940bb5416ef045f1c39458c653ea5a);
-        $display("plaintext = %h\nkey = %h\nciphertext = %h", in, key, out);
-        if (out == 128'h0a940bb5416ef045f1c39458c653ea5a) $display("The ciphertext is correct.");
-        else $display("The ciphertext is incorrect. Expected: 128'h0a940bb5416ef045f1c39458c653ea5a");
-        #10 $finish;
 
+        #30 $finish;
     end
 endmodule

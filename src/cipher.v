@@ -7,13 +7,17 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
     input logic clk, rst_n;
     
     input logic valid_in;
-    logic [0:Nr] valid;
+    logic [0:Nr + 1] valid;
     output logic valid_out;
 
     logic [0:Nkb - 1] state [0:Nr];
+    
+    logic [0:Nkb - 1] key_reg;
+    logic keygen_active;
+    logic [0:32*(4*Nr + 4) - 1] w; // easier to switch to 128-long slicing using a packed array so i'm keeping this inconsistency
+    // assign w = 1408'h000102030405060708090a0b0c0d0e0fd6aa74fdd2af72fadaa678f1d6ab76feb692cf0b643dbdf1be9bc5006830b3feb6ff744ed2c2c9bf6c590cbf0469bf4147f7f7bc95353e03f96c32bcfd058dfd3caaa3e8a99f9deb50f3af57adf622aa5e390f7df7a69296a7553dc10aa31f6b14f9701ae35fe28c440adf4d4ea9c02647438735a41c65b9e016baf4aebf7ad2549932d1f08557681093ed9cbe2c974e13111d7fe3944a17f307a78b4d2b30c5;
     integer i, j, k;
 
-    logic [0:32*(4*Nr + 4) - 1] w; // easier to switch to 128-long slicing using a packed array so i'm keeping this inconsistency
 
     function [7:0] sbox;
         input [7:0] b;
@@ -321,6 +325,7 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
             for (i = 0; i < 16; i = i + 1) begin
                 subbytes[8*i+:8] = sbox(s[8*i+:8]);
             end
+            // $display("Function subbytes: t = %0t, state = %h", $time, subbytes);
         end
     endfunction
 
@@ -332,8 +337,9 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
                 for (j = 0; j < 4; j = j + 1) begin
                     // why? convert aes_spec formula for shiftrows() to column major.
                     shiftrows[32*i + 8*j+:8] = s[32*((i + j)%4) + 8*j+:8];
-                end 
+                end
             end
+            // $display("Function shiftrows: t = %0t, state = %h", $time, shiftrows); 
         end
     endfunction
 
@@ -363,6 +369,7 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
                     xtimes(s[(32*j + 24)+:8])^s[(32*j + 0)+:8]^xtimes(s[(32*j + 0)+:8])^s[(32*j + 8)+:8]^s[(32*j + 16)+:8]
                 };
             end
+            // $display("Function mixcolumns: t = %0t, state = %h", $time, mixcolumns);
         end
     endfunction
 
@@ -378,7 +385,6 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
     endfunction
 
     always @ (*) begin
-        // key generation
         for (i = 0; i <= Nk - 1; i = i + 1) begin
             w[32*i+:32] = key[32*i+:32];
         end
@@ -393,19 +399,24 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
             for (i = 0; i <= Nr; i = i + 1) begin
                 state[i] <= 0;
             end
-            w <= 0;
             valid <= 0;
         end
         else begin
+            // status: following initial cycle all outputs run one cycle late.
             state[0] <= addroundkey(in, w[0+:Nkb]);
             valid[0] <= valid_in;
             for (i = 1; i < Nr; i = i + 1) begin
                 state[i] <= addroundkey(mixcolumns(shiftrows(subbytes(state[i - 1]))), w[Nkb*i+:Nkb]);
                 valid[i] <= valid[i - 1];
+                // $display("t = %0t, in= %h\nkey = %h\nstate[%0d] = %h", $time, in, key, i, state[i]);
             end
-            state[i] <= addroundkey(shiftrows(subbytes(state[i - 1])), w[Nkb*i+:Nkb]);
+            state[Nr] <= addroundkey(shiftrows(subbytes(state[Nr - 1])), w[Nkb*Nr+:Nkb]);
+            // valid[Nr] <= valid[Nr - 1];
+            // valid[Nr + 1] <= valid[Nr];
         end
     end
+
     assign out = state[Nr];
     assign valid_out = valid[Nr - 1];
+    // assign valid_out = keygen_active ? valid[Nr + 1] : valid[Nr];
 endmodule
