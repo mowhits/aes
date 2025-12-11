@@ -4,7 +4,7 @@ module cipher_tb;
     logic [0:Nkb - 1] key, in;
     logic [0:Nkb - 1] out;
     logic [0:Nkb - 1] test;
-    logic clk, rst_n, clk_en;
+    logic clk, rst_n;
     logic valid_in, valid_out;
 
     cipher dut (.in(in), .key(key), .out(out), .clk(clk), .rst_n(rst_n), .valid_in(valid_in), .valid_out(valid_out));
@@ -12,11 +12,6 @@ module cipher_tb;
     initial begin
         clk = 0;
         forever #1 clk = ~clk;
-    end
-
-    initial begin
-        clk_en = 0;
-        forever #2 clk_en = ~clk_en;
     end
 
     always @(posedge clk) begin
@@ -43,21 +38,22 @@ module cipher_tb;
         @(posedge clk);
         in = 128'h00000101030307070f0f1f1f3f3f7f7f; // 3
         // ciphertext : 128'hb7ea90af536c82a8c8df97106b978f5a
-        repeat(2) @(posedge clk);
+        @(posedge clk);
         in = 128'h0; // 2
         // ciphertext : 128'hc6a13b37878f5b826f4f8162a1c8d879
-        repeat(2) @(posedge clk);
+        @(posedge clk);
         in = 128'h0f0e0d0c0b0a09080706050403020100; // 4
         // ciphertext : 128'h20a9f992b44c5be8041ffcdc6cae996a
-        repeat(2) @(posedge clk);
+        @(posedge clk);
         in = 128'h000102030405060708090a0b0c0d0e0f; // 3
         // ciphertext : 128'h0a940bb5416ef045f1c39458c653ea5a
-        repeat(2) @(posedge clk);
+        @(posedge clk);
         in = 128'h0; // 2
         // ciphertext : 128'hc6a13b37878f5b826f4f8162a1c8d879
 
-        #30 rst_n = 0;
+        #100 rst_n = 0;
         repeat(2) @(posedge clk);
+        $display("Entering second reset territory");
         rst_n = 1;
         in = 128'h000102030405060708090a0b0c0d0e0f;
         key = 128'h00102030405060708090a0b0c0d0e0f;
@@ -68,15 +64,13 @@ module cipher_tb;
         @(posedge clk);
         in = 128'h00000101030307070f0f1f1f3f3f7f7f; // 3
         // ciphertext : 128'hb7ea90af536c82a8c8df97106b978f5a
-        repeat(2) @(posedge clk);
+        @(posedge clk);
         in = 128'h000102030405060708090a0b0c0d0e0f; // 3
         // ciphertext : 128'h0a940bb5416ef045f1c39458c653ea5a
         repeat(2) @(posedge clk);
         in = 128'h0; // 2
         // ciphertext : 128'hc6a13b37878f5b826f4f8162a1c8d879
-        
-        // outputs here. really need to improve this testbench but it suffices for now.
 
-        #30 $finish;
+        #100 $finish;
     end
 endmodule

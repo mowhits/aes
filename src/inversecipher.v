@@ -679,19 +679,19 @@ module inversecipher(in, key, out, clk, rst_n, valid_in, valid_out);
             for (i = 0; i <= Nr; i = i + 1) begin
                 state[i] <= 0;
             end
-            w <= 0;
             valid <= 0;
         end
         else begin
-            state[0] = addroundkey(in, w[Nkb*Nr+:Nkb]);
-            valid[0] = valid_in;
+            state[Nr] <= addroundkey(in, w[Nkb*Nr+:Nkb]);
+            valid[Nr] <= valid_in;
             for (i = Nr - 1; i > 0; i = i - 1) begin
-                state[Nr - i] <= invmixcolumns(addroundkey(invsubbytes(invshiftrows(state)), w[Nkb*i+:Nkb]));
-                valid[Nr - i] <= valid[Nr - i - 1];
+                state[i] <= invmixcolumns(addroundkey(invsubbytes(invshiftrows(state[i + 1])), w[Nkb*i+:Nkb]));
+                valid[i] <= valid[i + 1];
             end
-            state[Nr] = addroundkey(invsubbytes(invshiftrows(state[Nr - 1])), w[0+:Nkb]);
+            state[0] <= addroundkey(invsubbytes(invshiftrows(state[1])), w[0+:Nkb]);
+            valid[0] <= valid[1];
         end
     end
-    assign out = state[Nr];
-    assign valid_out = valid[Nr - 1];
+    assign out = state[0];
+    assign valid_out = valid_in ? valid[0] : 0;
 endmodule

@@ -7,15 +7,16 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
     input logic clk, rst_n;
     
     input logic valid_in;
-    logic [0:Nr + 1] valid;
+    logic [0:Nr] valid;
     output logic valid_out;
 
     logic [0:Nkb - 1] state [0:Nr];
+    logic [0:Nkb - 1] stateA [0:Nr];
+    logic [0:Nkb - 1] stateB [0:Nr];
     
     logic [0:Nkb - 1] key_reg;
-    logic keygen_active;
     logic [0:32*(4*Nr + 4) - 1] w; // easier to switch to 128-long slicing using a packed array so i'm keeping this inconsistency
-    // assign w = 1408'h000102030405060708090a0b0c0d0e0fd6aa74fdd2af72fadaa678f1d6ab76feb692cf0b643dbdf1be9bc5006830b3feb6ff744ed2c2c9bf6c590cbf0469bf4147f7f7bc95353e03f96c32bcfd058dfd3caaa3e8a99f9deb50f3af57adf622aa5e390f7df7a69296a7553dc10aa31f6b14f9701ae35fe28c440adf4d4ea9c02647438735a41c65b9e016baf4aebf7ad2549932d1f08557681093ed9cbe2c974e13111d7fe3944a17f307a78b4d2b30c5;
+
     integer i, j, k;
 
 
@@ -398,25 +399,25 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
         if (!rst_n) begin
             for (i = 0; i <= Nr; i = i + 1) begin
                 state[i] <= 0;
+                stateA[i] <= 0;
+                stateB[i] <= 0;
             end
             valid <= 0;
         end
         else begin
-            // status: following initial cycle all outputs run one cycle late.
             state[0] <= addroundkey(in, w[0+:Nkb]);
             valid[0] <= valid_in;
             for (i = 1; i < Nr; i = i + 1) begin
-                state[i] <= addroundkey(mixcolumns(shiftrows(subbytes(state[i - 1]))), w[Nkb*i+:Nkb]);
+                stateA[i] <= shiftrows(subbytes(state[i - 1]));
+                stateB[i] <= mixcolumns(stateA[i]);
+                state[i] <= addroundkey(stateB[i], w[Nkb*i+:Nkb]);
                 valid[i] <= valid[i - 1];
                 // $display("t = %0t, in= %h\nkey = %h\nstate[%0d] = %h", $time, in, key, i, state[i]);
             end
             state[Nr] <= addroundkey(shiftrows(subbytes(state[Nr - 1])), w[Nkb*Nr+:Nkb]);
-            // valid[Nr] <= valid[Nr - 1];
-            // valid[Nr + 1] <= valid[Nr];
         end
     end
 
     assign out = state[Nr];
-    assign valid_out = valid[Nr - 1];
-    // assign valid_out = keygen_active ? valid[Nr + 1] : valid[Nr];
+    assign valid_out = valid_in ? valid[Nr - 1] : 0;
 endmodule
