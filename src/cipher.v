@@ -11,14 +11,8 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
     output logic valid_out;
 
     logic [0:Nkb - 1] state [0:Nr];
-    logic [0:Nkb - 1] stateA [0:Nr];
-    logic [0:Nkb - 1] stateB [0:Nr];
     
-    logic [0:Nkb - 1] key_reg;
-    logic [0:32*(4*Nr + 4) - 1] w; // easier to switch to 128-long slicing using a packed array so i'm keeping this inconsistency
-
-    integer i, j, k;
-
+    logic [0:32*(4*Nr + 4) - 1] w;
 
     function [7:0] sbox;
         input [7:0] b;
@@ -340,7 +334,6 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
                     shiftrows[32*i + 8*j+:8] = s[32*((i + j)%4) + 8*j+:8];
                 end
             end
-            // $display("Function shiftrows: t = %0t, state = %h", $time, shiftrows); 
         end
     endfunction
 
@@ -370,7 +363,6 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
                     xtimes(s[(32*j + 24)+:8])^s[(32*j + 0)+:8]^xtimes(s[(32*j + 0)+:8])^s[(32*j + 8)+:8]^s[(32*j + 16)+:8]
                 };
             end
-            // $display("Function mixcolumns: t = %0t, state = %h", $time, mixcolumns);
         end
     endfunction
 
@@ -386,6 +378,7 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
     endfunction
 
     always @ (*) begin
+        integer i;
         for (i = 0; i <= Nk - 1; i = i + 1) begin
             w[32*i+:32] = key[32*i+:32];
         end
@@ -396,11 +389,10 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
     end
 
     always @(posedge clk) begin
+        integer i;
         if (!rst_n) begin
             for (i = 0; i <= Nr; i = i + 1) begin
                 state[i] <= 0;
-                stateA[i] <= 0;
-                stateB[i] <= 0;
             end
             valid <= 0;
         end
@@ -408,16 +400,14 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
             state[0] <= addroundkey(in, w[0+:Nkb]);
             valid[0] <= valid_in;
             for (i = 1; i < Nr; i = i + 1) begin
-                stateA[i] <= shiftrows(subbytes(state[i - 1]));
-                stateB[i] <= mixcolumns(stateA[i]);
-                state[i] <= addroundkey(stateB[i], w[Nkb*i+:Nkb]);
+                state[i] <= addroundkey(mixcolumns(shiftrows(subbytes(state[i - 1]))), w[Nkb*i+:Nkb]);
                 valid[i] <= valid[i - 1];
-                // $display("t = %0t, in= %h\nkey = %h\nstate[%0d] = %h", $time, in, key, i, state[i]);
             end
+            valid[Nr] <= valid[Nr - 1];
             state[Nr] <= addroundkey(shiftrows(subbytes(state[Nr - 1])), w[Nkb*Nr+:Nkb]);
         end
     end
 
     assign out = state[Nr];
-    assign valid_out = valid_in ? valid[Nr - 1] : 0;
+    assign valid_out = valid_in ? valid[Nr] : 0;
 endmodule
