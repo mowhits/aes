@@ -1,8 +1,9 @@
 module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
     parameter Nk = 4; localparam Nkb = Nk*32; // 128 -> 4; 192 -> 6; 256 -> 8
     parameter Nr = 10; // 128 -> 10; 192 -> 12; 256 -> 14
-    input logic [0:Nkb - 1] key, in;
-    output logic [0:Nkb - 1] out;
+    input logic [0:Nkb - 1] key;
+    input logic [0:127] in;
+    output logic [0:127] out;
 
     input logic clk, rst_n;
     
@@ -10,7 +11,7 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
     logic [0:Nr] valid;
     output logic valid_out;
 
-    logic [0:Nkb - 1] state [0:Nr];
+    logic [0:127] state [0:Nr];
     
     logic [0:32*(4*Nr + 4) - 1] w;
 
@@ -313,8 +314,8 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
         end
     endfunction
 
-    function [0:Nkb - 1] subbytes;
-        input [0:Nkb - 1] s;
+    function [0:127] subbytes;
+        input [0:127] s;
         integer i;
         begin
             for (i = 0; i < 16; i = i + 1) begin
@@ -324,8 +325,8 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
         end
     endfunction
 
-    function [0:Nkb - 1] shiftrows;
-        input [0:Nkb - 1] s;
+    function [0:127] shiftrows;
+        input [0:127] s;
         integer i, j;
         begin
             for (i = 0; i < 4; i = i + 1) begin
@@ -345,8 +346,8 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
         end
     endfunction
 
-    function [0:Nkb - 1] mixcolumns;
-        input [0:Nkb - 1] s;
+    function [0:127] mixcolumns;
+        input [0:127] s;
         integer j;
         begin
             for (j = 0; j < 4; j = j + 1) begin
@@ -366,8 +367,8 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
         end
     endfunction
 
-    function [0:Nkb - 1] addroundkey;
-        input [0:Nkb - 1] s;
+    function [0:127] addroundkey;
+        input [0:127] s;
         input [0:Nkb - 1] roundkey;
         integer j;
         begin
