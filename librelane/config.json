@@ -1,0 +1,14 @@
+{
+    "DESIGN_NAME": "cipher",
+    "VERILOG_FILES": "dir::../src/cipher.sv",
+    "CLOCK_PERIOD": 100,
+    "CLOCK_PORT": "clk",
+    "FP_CORE_UTIL": 30,
+    "PL_TARGET_DENSITY": 0.35,
+    "MAX_TRANSITION_CONSTRAINT": 1.2,
+    "STA_CORNERS": [
+        "nom_tt_025C_1v80",
+        "min_ss_100C_1v60", 
+        "max_ss_100C_1v60"
+    ]
+}
