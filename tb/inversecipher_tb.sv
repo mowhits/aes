@@ -17,9 +17,11 @@ module inversecipher_tb;
 
     always @(posedge clk) begin
         integer i;
-        i <= 0;
-        $monitor("t = %0t / cycle %0d: %h, valid_out: %b", $time, i, out, valid_out);
-        i <= i + 1;
+        if (!rst_n) i <= 0;
+        else begin
+            $monitor("t = %0t / cycle %0d: %h, valid_out: %b", $time, i, out, valid_out);
+            i <= i + 1;
+        end
     end
 
     initial begin

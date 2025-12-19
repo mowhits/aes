@@ -577,8 +577,8 @@ module inversecipher(in, key, out, clk, rst_n, valid_in, valid_out);
         end
     endfunction
 
-    function [0:Nkb - 1] invsubbytes;
-        input [0:Nkb - 1] s;
+    function [0:127] invsubbytes;
+        input [0:127] s;
         integer i;
         begin
             for (i = 0; i < 16; i = i + 1) begin
@@ -587,8 +587,8 @@ module inversecipher(in, key, out, clk, rst_n, valid_in, valid_out);
         end
     endfunction
 
-    function [0:Nkb - 1] invshiftrows;
-        input [0:Nkb - 1] s;
+    function [0:127] invshiftrows;
+        input [0:127] s;
         integer i, j;
         begin
             for (i = 0; i < 4; i = i + 1) begin
@@ -633,8 +633,8 @@ module inversecipher(in, key, out, clk, rst_n, valid_in, valid_out);
         xtimese = xtimes(xtimes(xtimes(b)))^xtimes(xtimes(b))^xtimes(b); // {0d} = {08} ⨁ {04} ⨁ {02}
     endfunction
 
-    function [0:Nkb - 1] invmixcolumns;
-        input [0:Nkb - 1] s;
+    function [0:127] invmixcolumns;
+        input [0:127] s;
         integer j;
         begin
             for (j = 0; j < 4; j = j + 1) begin
@@ -654,8 +654,8 @@ module inversecipher(in, key, out, clk, rst_n, valid_in, valid_out);
         end
     endfunction
     
-    function [0:Nkb - 1] addroundkey;
-        input [0:Nkb - 1] s;
+    function [0:127] addroundkey;
+        input [0:127] s;
         input [0:Nkb - 1] roundkey;
         integer j;
         begin
