@@ -1,9 +1,21 @@
-module keyexpansion(key, w);
+module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
     parameter Nk = 4; localparam Nkb = Nk*32; // 128 -> 4; 192 -> 6; 256 -> 8
     parameter Nr = 10; // 128 -> 10; 192 -> 12; 256 -> 14
     input logic [0:Nkb - 1] key;
-    output logic [0:32*(4*Nr + 4) - 1] w; 
-    integer i;
+    input logic [0:127] in;
+    output logic [0:127] out;
+
+    input logic clk, rst_n;
+    
+    input logic valid_in;
+    logic [0:Nr + 2] valid;
+    output logic valid_out;
+
+    logic [0:127] state [0:Nr];
+    
+    logic [0:32*(4*Nr + 4) - 1] w_comb;
+    logic [0:32*(4*Nr + 4) - 1] w;
+
 
     function [7:0] sbox;
         input [7:0] b;
@@ -304,13 +316,113 @@ module keyexpansion(key, w);
         end
     endfunction
 
+    function [0:127] subbytes;
+        input [0:127] s;
+        integer i;
+        begin
+            for (i = 0; i < 16; i = i + 1) begin
+                subbytes[8*i+:8] = sbox(s[8*i+:8]);
+            end
+            // $display("Function subbytes: t = %0t, state = %h", $time, subbytes);
+        end
+    endfunction
+
+    function [0:127] shiftrows;
+        input [0:127] s;
+        integer i, j;
+        begin
+            for (i = 0; i < 4; i = i + 1) begin
+                for (j = 0; j < 4; j = j + 1) begin
+                    // why? convert aes_spec formula for shiftrows() to column major.
+                    shiftrows[32*i + 8*j+:8] = s[32*((i + j)%4) + 8*j+:8];
+                end
+            end
+        end
+    endfunction
+
+    function [7:0] xtimes;
+        input [7:0] b;
+        begin
+            if (b[7]) xtimes = (b << 1)^(8'b00011011);
+            else xtimes = b << 1;
+        end
+    endfunction
+
+    function [0:127] mixcolumns;
+        input [0:127] s;
+        integer j;
+        begin
+            for (j = 0; j < 4; j = j + 1) begin
+                /* 
+                why? in the aes_spec formula for mixcolumns(), we have b \cdot {03}, which is
+                nontrivial to perform. thus, we'll split the {03} to its xor factors, i.e. {03} = {01} \circplus {02}
+                b \cdot ({01} \circplus {02} = b \circplus (b \cdot {02}) = b^xtimes(b). 
+                */
+                mixcolumns[32*j+:32] = 
+                {
+                    xtimes(s[(32*j + 0)+:8])^s[(32*j + 8)+:8]^xtimes(s[(32*j + 8)+:8])^s[(32*j + 16)+:8]^s[(32*j + 24)+:8],
+                    xtimes(s[(32*j + 8)+:8])^s[(32*j + 16)+:8]^xtimes(s[(32*j + 16)+:8])^s[(32*j + 0)+:8]^s[(32*j + 24)+:8],
+                    xtimes(s[(32*j + 16)+:8])^s[(32*j + 24)+:8]^xtimes(s[(32*j + 24)+:8])^s[(32*j + 0)+:8]^s[(32*j + 8)+:8],
+                    xtimes(s[(32*j + 24)+:8])^s[(32*j + 0)+:8]^xtimes(s[(32*j + 0)+:8])^s[(32*j + 8)+:8]^s[(32*j + 16)+:8]
+                };
+            end
+        end
+    endfunction
+
+    function [0:127] addroundkey;
+        input [0:127] s;
+        input [0:Nkb - 1] roundkey;
+        integer j;
+        begin
+            for (j = 0; j < 4; j = j + 1) begin
+                addroundkey[32*j+:32] = s[32*j+:32]^roundkey[32*j+:32];
+            end
+        end
+    endfunction
+
     always @ (*) begin
+        integer i;
         for (i = 0; i <= Nk - 1; i = i + 1) begin
-            w[32*i+:32] = key[32*i+:32];
+            w_comb[32*i+:32] = key[32*i+:32];
         end
 
         for (i = Nk; i <= 4*Nr + 3; i = i + 1) begin
-            w[32*i+:32] = w[32*(i - Nk)+:32]^wgen(w[32*(i - 1)+:32], i);
+            w_comb[32*i+:32] = w_comb[32*(i - Nk)+:32]^wgen(w_comb[32*(i - 1)+:32], i);
         end
     end
+
+    always @(posedge clk) begin
+        if (!rst_n) w <= 0;
+        else w <= w_comb;
+    end
+
+    always @(posedge clk) begin
+        integer i;
+        if (!rst_n) valid <= 0;
+        else begin
+            valid[0] <= valid_in;
+            for (i = 1; i <= Nr + 2; i = i + 1) begin
+                valid[i] <= valid[i - 1];
+            end
+        end
+    end
+
+    always @(posedge clk) begin
+        integer i;
+        if (!rst_n || !valid_in) begin
+            for (i = 0; i <= Nr; i = i + 1) begin
+                state[i] <= 0;
+            end
+        end
+        else begin
+            state[0] <= addroundkey(in, w[0+:Nkb]);
+            for (i = 1; i < Nr; i = i + 1) begin
+                state[i] <= addroundkey(mixcolumns(shiftrows(subbytes(state[i - 1]))), w[Nkb*i+:Nkb]);
+            end
+            state[Nr] <= addroundkey(shiftrows(subbytes(state[Nr - 1])), w[Nkb*Nr+:Nkb]);
+        end
+    end
+
+    assign out = state[Nr];
+    assign valid_out = valid[Nr + 2];
 endmodule

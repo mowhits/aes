@@ -1,0 +1,8 @@
+{
+    "DESIGN_NAME": "cipher",
+    "VERILOG_FILES": "dir::../src/cipher.sv",
+    "CLOCK_PERIOD": 80,
+    "CLOCK_PORT": "clk",
+    "FP_CORE_UTIL": 50,
+    "PL_TARGET_DENSITY": 0.55
+}
