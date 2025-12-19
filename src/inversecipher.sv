@@ -1,19 +1,20 @@
 module inversecipher(in, key, out, clk, rst_n, valid_in, valid_out);
     parameter Nk = 4; localparam Nkb = Nk*32; // 128 -> 4; 192 -> 6; 256 -> 8
     parameter Nr = 10; // 128 -> 10; 192 -> 12; 256 -> 14
-    input logic [0:Nkb - 1] key, in;
-    output logic [0:Nkb - 1] out;
+    input logic [0:Nkb - 1] key;
+    input logic [0:127] in;
+    output logic [0:127] out;
 
     input logic clk, rst_n;
     
     input logic valid_in;
-    logic [0:Nr] valid;
+    logic [0:Nr + 2] valid;
     output logic valid_out;
 
-    logic [0:Nkb - 1] state [0:Nr];
-    // integer i, j, k;
+    logic [0:127] state [0:Nr];
 
     logic [0:32*(4*Nr + 4) - 1] w;
+    logic [0:32*(4*Nr + 4) - 1] w_comb;
 
     function [7:0] sbox;
         input [7:0] b;
@@ -676,24 +677,36 @@ module inversecipher(in, key, out, clk, rst_n, valid_in, valid_out);
     end
 
     always @(posedge clk) begin
+        if (!rst_n) w <= 0;
+        else w <= w_comb;
+    end
+
+    always @(posedge clk) begin
         integer i;
-        if (!rst_n) begin
+        if (!rst_n) valid <= 0;
+        else begin
+            valid[0] <= valid_in;
+            for (i = 1; i <= Nr + 2; i = i + 1) begin
+                valid[i] <= valid[i - 1];
+            end
+        end
+    end
+
+    always @(posedge clk) begin
+        integer i;
+        if (!rst_n || !valid_in) begin
             for (i = 0; i <= Nr; i = i + 1) begin
                 state[i] <= 0;
             end
-            valid <= 0;
         end
         else begin
             state[Nr] <= addroundkey(in, w[Nkb*Nr+:Nkb]);
-            valid[Nr] <= valid_in;
             for (i = Nr - 1; i > 0; i = i - 1) begin
                 state[i] <= invmixcolumns(addroundkey(invsubbytes(invshiftrows(state[i + 1])), w[Nkb*i+:Nkb]));
-                valid[i] <= valid[i + 1];
             end
             state[0] <= addroundkey(invsubbytes(invshiftrows(state[1])), w[0+:Nkb]);
-            valid[0] <= valid[1];
         end
     end
     assign out = state[0];
-    assign valid_out = valid_in ? valid[0] : 0;
+    assign valid_out = valid[Nr + 2];
 endmodule

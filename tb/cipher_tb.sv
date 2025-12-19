@@ -1,9 +1,10 @@
 module cipher_tb;
     parameter Nk = 4; localparam Nkb = Nk*32; // 128 -> 4; 192 -> 6; 256 -> 8
     parameter Nr = 10; // 128 -> 10; 192 -> 12; 256 -> 14
-    logic [0:Nkb - 1] key, in;
-    logic [0:Nkb - 1] out;
-    logic [0:Nkb - 1] test;
+    logic [0:Nkb - 1] key;
+    logic [0:127] in;
+    logic [0:127] out;
+
     logic clk, rst_n;
     logic valid_in, valid_out;
 
@@ -15,8 +16,9 @@ module cipher_tb;
     end
 
     always @(posedge clk) begin
-        integer i = 0;
-        $monitor("t = %0t / cycle %0d: %h, %b", $time, i, out, valid_out);
+        integer i;
+        i <= 0;
+        $monitor("t = %0t / cycle %0d: %h, valid_out: %b", $time, i, out, valid_out);
         i <= i + 1;
     end
 
@@ -51,7 +53,7 @@ module cipher_tb;
         in = 128'h0;
         // ciphertext : 128'hc6a13b37878f5b826f4f8162a1c8d879
         
-        #30 rst_n = 0;
+        #30 rst_n = 0; // waiting for pipeline to process
         $display("RESET");
         repeat(2) @(posedge clk);
         rst_n = 1;

@@ -393,7 +393,7 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
 
     always @(posedge clk) begin
         if (!rst_n) w <= 0;
-        else w <= w_comb; // registering output
+        else w <= w_comb;
     end
 
     always @(posedge clk) begin
@@ -409,7 +409,7 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
 
     always @(posedge clk) begin
         integer i;
-        if (!rst_n) begin
+        if (!rst_n || !valid_in) begin
             for (i = 0; i <= Nr; i = i + 1) begin
                 state[i] <= 0;
             end
@@ -424,5 +424,5 @@ module cipher(in, key, out, clk, rst_n, valid_in, valid_out);
     end
 
     assign out = state[Nr];
-    assign valid_out = valid_in ? valid[Nr + 2] : 0;
+    assign valid_out = valid[Nr + 2];
 endmodule
