@@ -48,6 +48,9 @@ module inversecipher_tb;
         key = 128'h00102030405060708090a0b0c0d0e0f;
 
         repeat(2) @(posedge clk);
+        in = 128'hb7ea90af536c82a8c8df97106b978f5a;
+        // plaintext = 128'h00000101030307070f0f1f1f3f3f7f7f
+        @(posedge clk);
         in = 128'h20a9f992b44c5be8041ffcdc6cae996a;
         // plaintext = 128'h0f0e0d0c0b0a09080706050403020100
         @(posedge clk);
